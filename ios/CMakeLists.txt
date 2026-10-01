@@ -112,7 +112,14 @@ target_compile_definitions(ikura_engine PUBLIC
 # predates modern clang and needs the extra relaxations.
 target_compile_options(ikura_engine PRIVATE
 	-Wno-deprecated-declarations
-	-Wno-unknown-pragmas)
+	-Wno-unknown-pragmas
+	# The engine is 2010s C++ that leans on gcc-isms; the Android build
+	# passes exactly these switches (app/src/main/jni/Application.mk) and
+	# does not compile without them, because clang makes -Wc++11-narrowing
+	# an error by default (vile/common/ustring.cpp uses char -> Uint8
+	# brace initialisation in three places).
+	-Wno-c++11-narrowing
+	-Wno-narrowing)
 
 set_source_files_properties(${VILE_GFX_SOURCES} PROPERTIES
 	COMPILE_OPTIONS "-Wno-everything")
