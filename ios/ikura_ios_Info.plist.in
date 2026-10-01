@@ -13,7 +13,7 @@
      This replaces Android's MANAGE_EXTERNAL_STORAGE access to
      /storage/emulated/0/Novels.
    - Both portrait and landscape so the library/save menu rotate, while
-     the engine forces landscape itself (SDL_HINT_ORIENTATIONS).
+     the host sets SDL_HINT_ORIENTATIONS around a game.
    - No launch storyboard: the UI is code (main.m), and an app without
      one simply fades in from black.
    - MinimumOSVersion 14.0: the target of this port ("iOS 14.4 and
@@ -45,7 +45,7 @@
 	<string>@CMAKE_OSX_DEPLOYMENT_TARGET@</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UIDeviceFamily</key>
 	<array>

@@ -76,6 +76,11 @@ CMAKE_COMMON=(
 	"-DCMAKE_INSTALL_PREFIX=$PREFIX"
 	"-DCMAKE_PREFIX_PATH=$PREFIX"
 	"-DBUILD_SHARED_LIBS=OFF"
+	# The iOS toolchain roots find_library/find_path inside the SDK, which
+	# would hide everything installed into $PREFIX; BOTH looks in both.
+	"-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH"
+	"-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH"
+	"-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH"
 	"${TOOLCHAIN_ARGS[@]}"
 )
 
@@ -129,12 +134,23 @@ build_library sdl2 "$SDL2_DIR" \
 	-DSDL_TEST=OFF \
 	-DSDL_TESTS=OFF
 
+# SDL_image, SDL_ttf and SDL_mixer all look for SDL2 through their own
+# cmake/FindPrivateSDL2.cmake. Its search is rooted inside the SDK by the iOS
+# toolchain, so hand it the answer directly: a cached SDL2_LIBRARY /
+# SDL2_INCLUDE_DIR means find_library never searches at all.
+SDL2_FIND_ARGS=(
+	"-DSDL2_DIR=$PREFIX"
+	"-DSDL2_INCLUDE_DIR=$PREFIX/include/SDL2"
+	"-DSDL2_LIBRARY=$PREFIX/lib/libSDL2.a"
+)
+
 # SDL_image: the stb backend decodes PNG and JPEG from inside the tarball
 # (src/stb_image.h), so no libpng/libjpeg build is needed. The ImageIO
 # backend is off because it links ApplicationServices, which is a macOS
 # framework the iOS SDK does not have. WebP/AVIF/JXL/SVG/TIFF are all off
 # for the same reason: they need libraries that are not in the tarball.
 build_library sdl2_image "$IMAGE_DIR" \
+	"${SDL2_FIND_ARGS[@]}" \
 	-DSDL2IMAGE_VENDORED=OFF \
 	-DSDL2IMAGE_BACKEND_STB=ON \
 	-DSDL2IMAGE_BACKEND_IMAGEIO=OFF \
@@ -154,6 +170,7 @@ build_library sdl2_image "$IMAGE_DIR" \
 # harfbuzz, which keeps the font path to freetype's own shaping - the same
 # thing the Android build links (app/src/main/jni/sdl_ttf).
 build_library sdl2_ttf "$TTF_DIR" \
+	"${SDL2_FIND_ARGS[@]}" \
 	-DSDL2TTF_VENDORED=ON \
 	-DSDL2TTF_HARFBUZZ=OFF \
 	-DSDL2TTF_SAMPLES=OFF
@@ -163,6 +180,7 @@ build_library sdl2_ttf "$TTF_DIR" \
 # off because their backends (libxmp, timidity) are not in the tarball;
 # Android enables them, so a game with .mod/.mid music will be silent here.
 build_library sdl2_mixer "$MIXER_DIR" \
+	"${SDL2_FIND_ARGS[@]}" \
 	-DSDL2MIXER_VENDORED=ON \
 	-DSDL2MIXER_MOD=OFF \
 	-DSDL2MIXER_MIDI=OFF \

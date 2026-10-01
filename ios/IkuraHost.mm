@@ -226,6 +226,11 @@ static int SDLCALL IkuraWindowShown(void *userdata, SDL_Event *event)
 	add(font);
 	argv.push_back(NULL);
 
+	/* The games are landscape and the library screen is portrait (see
+	 * IkuraAppDelegate). SDL asks UIKit for its mask while it creates the
+	 * window, so the hint has to be set before the engine runs. */
+	SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+
 	/* SDL ignores UIKit's touch and key events until this is on
 	 * (SDL_uikitevents.m: UIKit_PumpEvents returns immediately while the
 	 * pump is disabled); SDL's own delegate turns it on around the
