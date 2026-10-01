@@ -27,6 +27,19 @@
 // main() milestone.
 #define VILE_STAGE(...) __android_log_print(ANDROID_LOG_INFO, \
         "ikuradroid", __VA_ARGS__)
+#elif defined(VILE_IOS)
+// Same breadcrumbs for the iOS port: they land in the unified log
+// (Console.app / idevicesyslog), which is the only place a launch
+// failure shows up before the engine's own file log exists. os_log's C
+// interface is used because this file is C++, not Objective-C.
+#include <os/log.h>
+#include <stdio.h>
+#define VILE_STAGE(...) do{ \
+        char vile_stage_text[512]; \
+        snprintf(vile_stage_text, sizeof(vile_stage_text), __VA_ARGS__); \
+        os_log_with_type(OS_LOG_DEFAULT, OS_LOG_TYPE_DEFAULT, \
+                         "[ikuradroid] %{public}s", vile_stage_text); \
+    }while(0)
 #else
 #define VILE_STAGE(...) do{}while(0)
 #endif
@@ -52,7 +65,7 @@ int main(int argc,char **argv){
 	EDL_GetFileReset();
 	VILE_STAGE("main: enter, config reset");
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(VILE_IOS)
 	// Touch stays touch end to end (the FINGER* handlers in the
 	// event loop below are the canonical input path). SDL also
 	// synthesises a mouse stream from touch input; on 2.0.3 that
@@ -593,6 +606,34 @@ int main(int argc,char **argv){
 		}
 		else{
 			Cfg::System::Logfile="";
+		}
+#endif
+#ifdef VILE_IOS
+		// iOS entry contract (ios/IkuraHost.mm): the host already
+		// chdir()ed into the game folder and passed --cwd, --game,
+		// --save and --fontface, so everything here is configured. The
+		// font is the one name worth guarding: the engine resolves a
+		// relative face against the working directory with a plain
+		// fopen(), so a bare "default.ttf" coming from the game's own
+		// configuration has to be anchored to the game folder - while
+		// the absolute path the host passes stays untouched.
+		if(Cfg::Font::default_face.length() &&
+		   Cfg::Font::default_face[0]!='/'){
+			Cfg::Font::default_face=Cfg::Path::cwd+uString("/")+
+						Cfg::Font::default_face;
+		}
+		// Engine log next to the savegames (app-private Documents):
+		// retrievable with the Files app / iTunes file sharing, and
+		// truncated per launch like the Android one.
+		Cfg::System::Logfile = Cfg::Path::save + "/ikuradroid_log.txt";
+		{
+			FILE *logf=fopen(Cfg::System::Logfile.c_str(),"wb");
+			if(logf){
+				fclose(logf);
+			}
+			else{
+				Cfg::System::Logfile="";
+			}
 		}
 #endif
 
@@ -1287,7 +1328,7 @@ void ViLE::RunEngine(EngineVN *engine){
 					}
 				}
 			else if(event.type==SDL_QUIT){
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(VILE_IOS)
 				// Android has no window close button: a QUIT is
 				// always the app UI (the M3 menu quit) or the
 				// system asking for a straight exit, so take it
@@ -1493,6 +1534,11 @@ void ViLE::Quit(){
 	// Close down dependencies
 	IMG_Quit();
 	TTF_Quit();
+	// One game is one SDL session: ViLE::InitSystem() opened it with
+	// SDL_Init(), so this closes it again. On iOS the host runs this
+	// whole function on the main thread - the thread SDL's UIKit
+	// backend is written for - and starts the next game with a fresh
+	// SDL_Init(), so nothing depends on SDL outliving a game.
 	SDL_Quit();
 }
 

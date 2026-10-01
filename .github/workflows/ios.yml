@@ -1,0 +1,129 @@
+name: iOS IPA
+
+# Builds the iOS port as an unsigned IPA. There is no signing step on
+# purpose: the port targets iOS 14.0+ and is meant to be installed with
+# TrollStore (iOS 14.0 beta 2 - 16.6.1) or re-signed by AltStore/Sideloadly,
+# all of which sign on their own. See ios/README.md.
+#
+# macos-15 (Xcode 16.x) rather than macos-latest: the default runner moves
+# to macOS 26/Xcode 26, whose SDK no longer supports a 14.0 deployment target.
+
+on:
+  push:
+    branches:
+      - ios-port
+    paths:
+      - "app/src/main/jni/vile/**"
+      - "app/src/main/jni/sdl_gfx/**"
+      - "app/src/main/assets/default.ttf"
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    name: Build unsigned IPA
+    runs-on: macos-15
+    timeout-minutes: 90
+
+    env:
+      IOS_DEPLOYMENT_TARGET: "14.0"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          cmake --version
+          (ninja --version && echo "ninja: yes") || echo "ninja: no (make will be used)"
+
+      # SDL2, SDL2_image, SDL2_ttf and SDL2_mixer as static arm64 device
+      # libraries in ios-deps/ - the four archives ios/CMakeLists.txt links.
+      - name: Build SDL dependencies
+        run: ./ios/tools/build-deps.sh "$PWD/ios-deps"
+
+      - name: Configure
+        run: |
+          cmake -G Xcode -S ios -B build-ios \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="$IOS_DEPLOYMENT_TARGET" \
+            -DiOS_DEPS_PREFIX="$PWD/ios-deps" \
+            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO
+
+      - name: Build
+        run: |
+          cmake --build build-ios --config Release --parallel "$(sysctl -n hw.ncpu)" -- \
+            -sdk iphoneos \
+            -arch arm64 \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            EXPANDED_CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""
+
+      - name: Verify the app
+        id: app
+        run: |
+          set -x
+          APP="$(find build-ios -type d -name 'IkuraDroid.app' | head -n1)"
+          test -n "$APP" || { echo "no IkuraDroid.app was produced"; exit 1; }
+          echo "app=$APP" >> "$GITHUB_OUTPUT"
+          lipo -info "$APP/IkuraDroid"
+          otool -l "$APP/IkuraDroid" | grep -A5 LC_BUILD_VERSION | head -20
+          ls -la "$APP"
+          plutil -p "$APP/Info.plist" | head -40
+          # Everything the engine needs at runtime must be in the bundle.
+          test -f "$APP/default.ttf" || { echo "default.ttf is missing from the bundle"; exit 1; }
+
+      - name: Pseudo-sign (best effort)
+        run: |
+          APP="${{ steps.app.outputs.app }}"
+          brew install ldid >/dev/null 2>&1 || true
+          if command -v ldid >/dev/null 2>&1; then
+            ldid -S"$APP/IkuraDroid"
+            echo "pseudo-signed with ldid"
+          else
+            echo "ldid unavailable - shipping the IPA unsigned (TrollStore,"
+            echo "AltStore and Sideloadly all sign on install anyway)"
+          fi
+
+      - name: Package IPA
+        id: package
+        run: |
+          APP="${{ steps.app.outputs.app }}"
+          rm -rf Payload IkuraDroid-unsigned.ipa
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          # Keep the bundle tidy: the dSYM and the .app's own symbol info
+          # are not part of an installable payload.
+          rm -rf Payload/*.app/*.dSYM
+          zip -qry IkuraDroid-unsigned.ipa Payload
+          ls -la IkuraDroid-unsigned.ipa
+          echo "ipa=$PWD/IkuraDroid-unsigned.ipa" >> "$GITHUB_OUTPUT"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: IkuraDroid-unsigned-ipa
+          path: IkuraDroid-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build-ios/**/*.log
+            /Users/runner/Library/Logs/**/*.xcactivitylog
+          if-no-files-found: ignore
