@@ -71,8 +71,18 @@ file(GLOB VILE_GFX_SOURCES CONFIGURE_DEPENDS
 
 add_library(ikura_engine STATIC ${VILE_SOURCES} ${VILE_GFX_SOURCES})
 
+# The same include directories the NDK build lists in
+# app/src/main/jni/vile/Android.mk (LOCAL_C_INCLUDES): the vendored SDL2_gfx
+# headers the engine includes by bare name, and the engine's own
+# subdirectories the sources reach into.
 target_include_directories(ikura_engine PUBLIC
 	"${VILE_DIR}"
+	"${VILE_DIR}/engine"
+	"${VILE_DIR}/dialogs"
+	"${VILE_DIR}/widgets"
+	"${VILE_DIR}/common"
+	"${VILE_DIR}/tlove"
+	"${IKURA_ROOT}/app/src/main/jni/sdl_gfx"
 	"${iOS_DEPS_PREFIX}/include"
 	"${iOS_DEPS_PREFIX}/include/SDL2")
 

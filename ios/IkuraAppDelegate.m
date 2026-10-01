@@ -48,13 +48,20 @@
 	[self.window makeKeyAndVisible];
 }
 
-/* The library is portrait; SDL's window (which SDL_sets up full screen for
- * the game) has to be free to rotate to landscape and back. */
+/* The library is portrait; SDL's window (which SDL sets up full screen for
+ * the game) has to follow SDL_HINT_ORIENTATIONS, which IkuraHost sets to
+ * landscape around a game. UIKit consults this before the window's own
+ * view controller, so ask that controller rather than guessing - SDL turns
+ * the hint into its supportedInterfaceOrientations. */
 - (UIInterfaceOrientationMask)application:(UIApplication *)application
 	supportedInterfaceOrientationsForWindow:(UIWindow *)window
 {
 	if (window == self.window) {
 		return UIInterfaceOrientationMaskPortrait;
+	}
+	UIViewController *root = window.rootViewController;
+	if (root != nil) {
+		return [root supportedInterfaceOrientations];
 	}
 	return UIInterfaceOrientationMaskAllButUpsideDown;
 }

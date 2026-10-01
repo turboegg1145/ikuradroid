@@ -12,6 +12,8 @@
  */
 
 #import "IkuraGameLibrary.h"
+
+#include <dispatch/dispatch.h>
 #import "IkuraHost.h"
 
 NSString *const IkuraSaveDirectoryName = @"Saves";

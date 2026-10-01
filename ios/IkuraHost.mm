@@ -30,6 +30,7 @@
 #include <vector>
 
 #import <QuartzCore/QuartzCore.h>
+#include <dispatch/dispatch.h>
 
 /* The engine's main(), renamed at compile time for this target only
  * (ios/CMakeLists.txt: set_source_files_properties(vile.cpp PROPERTIES
