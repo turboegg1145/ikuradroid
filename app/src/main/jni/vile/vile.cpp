@@ -27,7 +27,7 @@
 // main() milestone.
 #define VILE_STAGE(...) __android_log_print(ANDROID_LOG_INFO, \
         "ikuradroid", __VA_ARGS__)
-#elif defined(VILE_IOS)
+#elif defined(VILE_IOS) && __has_include(<os/log.h>)
 // Same breadcrumbs for the iOS port: they land in the unified log
 // (Console.app / idevicesyslog), which is the only place a launch
 // failure shows up before the engine's own file log exists. os_log's C

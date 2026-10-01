@@ -114,7 +114,10 @@
 /* Compile code for wintendo */
 //#define VILE_ARCH_MICROSOFT 1
 
-#ifndef ANDROID
+/* wordexp() is declared in <wordexp.h> on Linux/BSD, but the iOS SDK marks
+   it (and wordfree) as unavailable, so the engine's POSIX fallbacks - the
+   ones the Android build already uses - have to take over there. */
+#if !defined(ANDROID) && !defined(VILE_IOS)
 #ifndef VILE_ARCH_MICROSOFT
 #define HAVE_WORDEXP_H 1
 #endif
