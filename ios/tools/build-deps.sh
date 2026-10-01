@@ -81,6 +81,10 @@ CMAKE_COMMON=(
 	"-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH"
 	"-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH"
 	"-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH"
+	# SDL2_ttf's vendored freetype still says cmake_minimum_required(3.0),
+	# which CMake 4 (the one Homebrew ships on the runners) refuses to
+	# configure without this floor.
+	"-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 	"${TOOLCHAIN_ARGS[@]}"
 )
 
