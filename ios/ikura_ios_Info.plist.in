@@ -14,8 +14,11 @@
      /storage/emulated/0/Novels.
    - Both portrait and landscape so the library/save menu rotate, while
      the host sets SDL_HINT_ORIENTATIONS around a game.
-   - No launch storyboard: the UI is code (main.m), and an app without
-     one simply fades in from black.
+   - Launch screen: the UI is code (main.m), but an app built against the
+     iOS 14+ SDK without a launch screen definition is launched in
+     compatibility mode (scaled/letterboxed). An empty UILaunchScreen
+     dictionary is the documented way to say "full screen, blank" - the
+     key only exists from iOS 14 on, which is exactly our floor.
    - MinimumOSVersion 14.0: the target of this port ("iOS 14.4 and
      below" means it has to run on 14.0-14.4 as well as newer releases).
 -->
@@ -43,6 +46,8 @@
 	<true/>
 	<key>MinimumOSVersion</key>
 	<string>@CMAKE_OSX_DEPLOYMENT_TARGET@</string>
+	<key>UILaunchScreen</key>
+	<dict/>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>arm64</string>
