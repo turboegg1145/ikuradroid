@@ -473,11 +473,19 @@ bool VideoPLMPEG_Play(RWops *Resource,const SDL_Rect *Dest,int ScreenW,int Scree
                                 aborted=true;
                         }
                         else if (event.type==SDL_FINGERUP){
+#if defined(VILE_IOS)
+                                // iOS reports UITouch.force as tfinger.pressure, and
+                                // force is 0.0 for every ordinary tap (and always on
+                                // devices without 3D Touch): a touch release here is
+                                // always a deliberate skip, never a cancel.
+                                skipped=true;
+#else
                                 // Zero pressure marks the synthetic cancel-UP in the
                                 // engine's input model; it must not skip anything.
                                 if (event.tfinger.pressure>0.0f){
                                         skipped=true;
                                 }
+#endif
                         }
                         else if (event.type==SDL_MOUSEBUTTONUP ||
                                 event.type==SDL_KEYDOWN){

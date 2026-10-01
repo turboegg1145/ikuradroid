@@ -1279,7 +1279,18 @@ void ViLE::RunEngine(EngineVN *engine){
 				int gx,gy;
 				VILE_MAP_INPUT_FINGER(event.tfinger.x,
 				                event.tfinger.y,gx,gy);
-				if(event.tfinger.pressure<=0.0f){
+#ifdef VILE_IOS
+				// iOS has no Java gesture tracker, and SDL's UIKit backend
+				// passes UITouch.force straight through as tfinger.pressure:
+				// force is 0.0 for an ordinary tap and always 0.0 on devices
+				// without 3D Touch. Taking that as the synthetic cancel would
+				// turn every tap into a cancel and no click would ever commit,
+				// so on iOS a touch release is a click, full stop.
+				const bool touch_cancelled=false;
+#else
+				const bool touch_cancelled=(event.tfinger.pressure<=0.0f);
+#endif
+				if(touch_cancelled){
 					// The Java gesture tracker consumed the touch after
 					// the live DOWN already reached the engine (menu/
 					// cancel swipe confirmed, second finger, system
